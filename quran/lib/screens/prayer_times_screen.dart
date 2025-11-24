@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
+// This screen now requests device location and fetches prayer times for that location.
+
 class PrayerTimesScreen extends StatefulWidget {
   const PrayerTimesScreen({super.key});
 
@@ -11,6 +13,7 @@ class PrayerTimesScreen extends StatefulWidget {
 class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   Map<String, dynamic>? prayerTimes;
   bool isLoading = true;
+  String? errorMsg;
 
   @override
   void initState() {
@@ -19,15 +22,26 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   }
 
   Future<void> _loadPrayerTimes() async {
+    setState(() {
+      isLoading = true;
+      errorMsg = null;
+    });
+
     try {
-      final data = await ApiService.getPrayerTimes('Rawalpindi', 'Pakistan');
+      // Get device location
+      final position = await ApiService.getCurrentLocation();
+      final data = await ApiService.getPrayerTimesByCoords(
+        position.latitude,
+        position.longitude,
+      );
       setState(() {
         prayerTimes = data['data']?['timings'];
         isLoading = false;
       });
     } catch (e) {
-      print('Error: $e');
+      print('Error loading prayer times for current location: $e');
       setState(() {
+        errorMsg = e.toString();
         isLoading = false;
       });
     }
@@ -57,6 +71,26 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
           child: isLoading
               ? Center(
                   child: CircularProgressIndicator(color: Color(0xFFd4af37)),
+                )
+              : errorMsg != null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Error: $errorMsg',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: _loadPrayerTimes,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFFd4af37),
+                        ),
+                        child: Text('Retry'),
+                      ),
+                    ],
+                  ),
                 )
               : SingleChildScrollView(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),

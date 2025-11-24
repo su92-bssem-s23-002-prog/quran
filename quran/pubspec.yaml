@@ -35,10 +35,13 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   geolocator: ^9.0.2
-  http: ^1.1.0
+  http: ^0.13.6
   intl: ^0.19.0
   google_maps_flutter: ^2.5.0
   flutter_compass: ^0.8.0
+  flutter_map: ^4.0.0
+  latlong2: ^0.8.1
+  flutter_svg: ^1.1.6
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +68,15 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/logo.png
+    - assets/icons/prayer.svg
+    - assets/icons/masjid.svg
+    - assets/icons/quran.svg
+    - assets/icons/qibla.svg
+    - assets/icons/calendar.svg
+    - assets/icons/tasbeeh.svg
+    - assets/icons/pillars.svg
+    - assets/icons/duas.svg
+    - assets/icons/about.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

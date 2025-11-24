@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
-import 'dart:math' as math;
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../services/api_service.dart';
 
 class MasjidFinderScreen extends StatefulWidget {
@@ -12,38 +11,53 @@ class MasjidFinderScreen extends StatefulWidget {
 }
 
 class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
-  GoogleMapController? _mapController;
-  Position? _userLocation;
   List<Map<String, dynamic>> nearbyMosques = [];
   bool isLoading = true;
-  bool showMap = true; // Start with map view
-  Set<Marker> markers = {};
+  String? userLocation = 'Getting location...';
+  double? userLat;
+  double? userLng;
+  final MapController _mapController = MapController();
+  List<LatLng> _routePoints = [];
+  List<Marker> _markers = [];
+  int? _selectedIndex;
 
   // Fallback masjids list if API fails
-  final List<Map<String, String>> fallbackMasjids = [
+  final List<Map<String, dynamic>> fallbackMasjids = [
     {
       'name': 'Faisal Mosque',
-      'location': 'Islamabad, Pakistan',
-      'distance': '2.5 km',
+      'address': 'Islamabad, Pakistan',
+      'lat': 33.7294,
+      'lng': 73.2401,
       'rating': '4.8',
+      'distance': '2.3 km',
+      'location': 'Islamabad',
     },
     {
-      'name': 'Iqbal Mosque',
-      'location': 'Rawalpindi, Pakistan',
-      'distance': '1.2 km',
-      'rating': '4.6',
+      'name': 'Badshahi Mosque',
+      'address': 'Lahore, Pakistan',
+      'lat': 31.5868,
+      'lng': 74.3075,
+      'rating': '4.7',
+      'distance': '5.1 km',
+      'location': 'Lahore',
     },
     {
       'name': 'Al-Haramain Mosque',
-      'location': 'Rawalpindi, Pakistan',
-      'distance': '3.1 km',
-      'rating': '4.5',
+      'address': 'Rawalpindi, Pakistan',
+      'lat': 33.5731,
+      'lng': 74.3365,
+      'rating': '4.6',
+      'distance': '1.5 km',
+      'location': 'Rawalpindi',
     },
     {
       'name': 'Central Mosque',
-      'location': 'Rawalpindi, Pakistan',
-      'distance': '0.8 km',
-      'rating': '4.7',
+      'address': 'Karachi, Pakistan',
+      'lat': 24.8607,
+      'lng': 67.0011,
+      'rating': '4.5',
+      'distance': '3.2 km',
+      'location': 'Karachi',
     },
   ];
 
@@ -57,133 +71,115 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
     try {
       // Get user's current location
       final position = await ApiService.getCurrentLocation();
-      setState(() => _userLocation = position);
 
-      // Add user location marker
-      markers.add(
-        Marker(
-          markerId: const MarkerId('user_location'),
-          position: LatLng(position.latitude, position.longitude),
-          infoWindow: const InfoWindow(title: 'Your Location'),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-        ),
+      setState(() {
+        userLat = position.latitude;
+        userLng = position.longitude;
+        userLocation =
+            '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+      });
+
+      print('User Location: $userLat, $userLng');
+
+      // Fetch nearby mosques using Mapbox
+      final data = await ApiService.getNearbyMosques(
+        position.latitude,
+        position.longitude,
       );
 
-      // Try to fetch nearby mosques using Google Places API
-      try {
-        final response = await ApiService.getNearbyMosques(
-          position.latitude,
-          position.longitude,
-          radiusMeters: 5000,
-        );
+      print('Mosques data: $data');
 
-        print('getNearbyMosques response: $response');
-
-        if (response['results'] != null) {
-          final results = response['results'] as List;
-          print('Found ${results.length} mosques');
-          setState(() {
-            nearbyMosques = results
-                .map(
-                  (mosque) => {
-                    'name': mosque['name'] ?? 'Unknown Mosque',
-                    'lat': mosque['geometry']['location']['lat'] ?? 0.0,
-                    'lng': mosque['geometry']['location']['lng'] ?? 0.0,
-                    'rating': mosque['rating']?.toString() ?? 'N/A',
-                    'location': mosque['vicinity'] ?? 'Unknown Location',
-                    'distance': _calculateDistance(
-                      position.latitude,
-                      position.longitude,
-                      mosque['geometry']['location']['lat'],
-                      mosque['geometry']['location']['lng'],
-                    ),
-                  },
-                )
-                .toList();
-
-            // Add mosque markers
-            for (var i = 0; i < nearbyMosques.length; i++) {
-              markers.add(
-                Marker(
-                  markerId: MarkerId('mosque_$i'),
-                  position: LatLng(
-                    nearbyMosques[i]['lat'],
-                    nearbyMosques[i]['lng'],
-                  ),
-                  infoWindow: InfoWindow(title: nearbyMosques[i]['name']),
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                    BitmapDescriptor.hueRed,
-                  ),
+      setState(() {
+        if (data['results'] != null && (data['results'] as List).isNotEmpty) {
+          nearbyMosques = List<Map<String, dynamic>>.from(data['results']);
+          // Build markers for the map
+          _markers = [];
+          for (var i = 0; i < nearbyMosques.length; i++) {
+            final m = nearbyMosques[i];
+            final double lat = (m['latitude'] ?? m['lat'] ?? 0).toDouble();
+            final double lng = (m['longitude'] ?? m['lng'] ?? 0).toDouble();
+            _markers.add(
+              Marker(
+                point: LatLng(lat, lng),
+                width: 36,
+                height: 36,
+                builder: (ctx) => GestureDetector(
+                  onTap: () => _selectMosqueAndRoute(i),
+                  child: Icon(Icons.location_on, color: Colors.redAccent),
                 ),
-              );
-            }
-
-            isLoading = false;
-          });
+              ),
+            );
+          }
         } else {
-          print('No results found in API response');
           _useFallbackMosques();
         }
-      } catch (e) {
-        // Use fallback list if API fails
-        print('Google Places API failed, using fallback mosques: $e');
-        _useFallbackMosques();
-      }
+        isLoading = false;
+      });
     } catch (e) {
-      setState(() => isLoading = false);
-      print('Error: $e');
-      _showError('Failed to load location. Please enable location services.');
+      print('Error loading mosques: $e');
+      setState(() {
+        _useFallbackMosques();
+        isLoading = false;
+      });
     }
   }
 
   void _useFallbackMosques() {
+    nearbyMosques = fallbackMasjids;
+    print('Using fallback mosques. Count: ${nearbyMosques.length}');
+  }
+
+  Future<void> _retryFetch() async {
     setState(() {
-      nearbyMosques = fallbackMasjids
-          .map(
-            (m) => {
-              'name': m['name'] ?? 'Unknown',
-              'location': m['location'] ?? 'Unknown',
-              'distance': m['distance'] ?? 'N/A',
-              'rating': m['rating'] ?? 'N/A',
-            },
+      isLoading = true;
+      nearbyMosques = [];
+    });
+    await _loadUserLocationAndMosques();
+  }
+
+  Future<void> _selectMosqueAndRoute(int index) async {
+    if (userLat == null || userLng == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('User location not available')));
+      return;
+    }
+
+    final mosque = nearbyMosques[index];
+    final double toLat = (mosque['latitude'] ?? mosque['lat'] ?? 0).toDouble();
+    final double toLng = (mosque['longitude'] ?? mosque['lng'] ?? 0).toDouble();
+
+    try {
+      setState(() {
+        _selectedIndex = index;
+        _routePoints = [];
+      });
+
+      final route = await ApiService.getRoute(userLat!, userLng!, toLat, toLng);
+      final List<dynamic> path = route['path'] ?? [];
+      final points = path
+          .map<LatLng>(
+            (p) => LatLng(
+              (p['lat'] as num).toDouble(),
+              (p['lng'] as num).toDouble(),
+            ),
           )
           .toList();
-      isLoading = false;
-    });
-  }
 
-  String _calculateDistance(
-    double userLat,
-    double userLng,
-    double mosqueLat,
-    double mosqueLng,
-  ) {
-    const double earthRadiusKm = 6371;
-    final dLat = _toRadians(mosqueLat - userLat);
-    final dLng = _toRadians(mosqueLng - userLng);
-
-    final a =
-        (math.sin(dLat / 2) * math.sin(dLat / 2)) +
-        (math.cos(_toRadians(userLat)) *
-            math.cos(_toRadians(mosqueLat)) *
-            math.sin(dLng / 2) *
-            math.sin(dLng / 2));
-    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    final distance = earthRadiusKm * c;
-
-    if (distance < 1) {
-      return '${(distance * 1000).toStringAsFixed(0)} m';
-    } else {
-      return '${distance.toStringAsFixed(1)} km';
+      setState(() {
+        _routePoints = points;
+        // center map on route midpoint
+        if (_routePoints.isNotEmpty) {
+          final mid = _routePoints[_routePoints.length ~/ 2];
+          _mapController.move(mid, _mapController.zoom);
+        }
+      });
+    } catch (e) {
+      print('Route error: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load route')));
     }
-  }
-
-  double _toRadians(double degree) => degree * (3.1415926535897932 / 180);
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
   }
 
   @override
@@ -200,46 +196,145 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Header with toggle button
+              // Header
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: Icon(
-                            Icons.arrow_back,
-                            color: Color(0xFFd4af37),
-                            size: 24,
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Text(
-                          'Masjid Finder',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (!isLoading)
-                      GestureDetector(
-                        onTap: () => setState(() => showMap = !showMap),
-                        child: Icon(
-                          showMap ? Icons.list : Icons.map,
-                          color: Color(0xFFd4af37),
-                          size: 24,
-                        ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Icon(
+                        Icons.arrow_back,
+                        color: Color(0xFFd4af37),
+                        size: 24,
                       ),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Masjid Finder',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              // Content
+              // Location Info
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Color(0xFF1a472a).withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Color(0xFF4a7c5e), width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_on, color: Color(0xFFd4af37)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Your Location',
+                              style: TextStyle(
+                                color: Color(0xFFb0b0b0),
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              userLocation ?? 'Loading...',
+                              style: TextStyle(
+                                color: Color(0xFFd4af37),
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Small map (height 180) + count
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      height: 180,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Color(0xFF4a7c5e)),
+                      ),
+                      clipBehavior: Clip.hardEdge,
+                      child: FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          center: userLat != null && userLng != null
+                              ? LatLng(userLat!, userLng!)
+                              : LatLng(33.72, 73.04),
+                          zoom: 13.0,
+                          interactiveFlags: InteractiveFlag.none,
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}',
+                            additionalOptions: {
+                              'accessToken': ApiService.mapboxApiKey,
+                              'id': 'mapbox/streets-v11',
+                            },
+                          ),
+                          if (userLat != null && userLng != null)
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: LatLng(userLat!, userLng!),
+                                  width: 40,
+                                  height: 40,
+                                  builder: (ctx) => Icon(
+                                    Icons.my_location,
+                                    color: Color(0xFFd4af37),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          if (_markers.isNotEmpty)
+                            MarkerLayer(markers: _markers),
+                          if (_routePoints.isNotEmpty)
+                            PolylineLayer(
+                              polylines: [
+                                Polyline(
+                                  points: _routePoints,
+                                  color: Colors.tealAccent.shade100,
+                                  strokeWidth: 4.0,
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Found ${nearbyMosques.length} Mosques Nearby',
+                      style: TextStyle(
+                        color: Color(0xFFd4af37),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Mosques List
               Expanded(
                 child: isLoading
                     ? Center(
@@ -247,9 +342,46 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
                           color: Color(0xFFd4af37),
                         ),
                       )
-                    : (showMap && _userLocation != null)
-                    ? _buildMapView()
-                    : _buildListView(),
+                    : nearbyMosques.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.mosque,
+                              color: Color(0xFFd4af37),
+                              size: 48,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'No Mosques Found',
+                              style: TextStyle(
+                                color: Color(0xFFd4af37),
+                                fontSize: 18,
+                              ),
+                            ),
+                            SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _retryFetch,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFFd4af37),
+                              ),
+                              child: Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.all(16),
+                        itemCount: nearbyMosques.length,
+                        itemBuilder: (context, index) {
+                          final mosque = nearbyMosques[index];
+                          return GestureDetector(
+                            onTap: () => _selectMosqueAndRoute(index),
+                            child: _buildMasjidCard(mosque, index: index),
+                          );
+                        },
+                      ),
               ),
             ],
           ),
@@ -258,145 +390,91 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
     );
   }
 
-  Widget _buildMapView() {
-    return GoogleMap(
-      onMapCreated: (controller) => _mapController = controller,
-      initialCameraPosition: CameraPosition(
-        target: LatLng(_userLocation!.latitude, _userLocation!.longitude),
-        zoom: 14,
+  Widget _buildMasjidCard(Map<String, dynamic> mosque, {int? index}) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Color(0xFF1a472a).withOpacity(0.6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Color(0xFF4a7c5e), width: 1.5),
       ),
-      markers: markers,
-      myLocationEnabled: true,
-      myLocationButtonEnabled: true,
-    );
-  }
-
-  Widget _buildListView() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Search Box
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            margin: EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: Color(0xFF1a472a).withOpacity(0.6),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Color(0xFF4a7c5e), width: 1.5),
-            ),
-            child: TextField(
-              style: TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Search mosques...',
-                hintStyle: TextStyle(color: Color(0xFF7a9a6b)),
-                border: InputBorder.none,
-                icon: Icon(Icons.search, color: Color(0xFFd4af37)),
+          // Mosque Name
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  mosque['name'] ?? 'Unknown Mosque',
+                  style: TextStyle(
+                    color: Color(0xFFd4af37),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ),
+              if (index != null && _selectedIndex == index)
+                Icon(Icons.navigation, color: Color(0xFFd4af37), size: 18),
+            ],
           ),
-          // Mosques List
-          if (nearbyMosques.isEmpty)
-            Center(
-              child: Text(
-                'No mosques found',
-                style: TextStyle(color: Colors.white70),
+          SizedBox(height: 8),
+          // Address
+          Row(
+            children: [
+              Icon(
+                Icons.location_on_outlined,
+                color: Color(0xFFb0b0b0),
+                size: 14,
               ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: nearbyMosques.length,
-              itemBuilder: (context, index) {
-                final mosque = nearbyMosques[index];
-                return Container(
-                  margin: EdgeInsets.only(bottom: 12),
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF1a472a).withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Color(0xFF4a7c5e), width: 1.5),
+              SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  mosque['address'] ?? mosque['location'] ?? 'Unknown Address',
+                  style: TextStyle(color: Color(0xFFb0b0b0), fontSize: 12),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+          // Rating and Distance
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.star, color: Color(0xFFd4af37), size: 14),
+                  SizedBox(width: 4),
+                  Text(
+                    mosque['rating']?.toString() ?? '4.5',
+                    style: TextStyle(
+                      color: Color(0xFFd4af37),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              mosque['name'] ?? 'Unknown',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          if (mosque['rating'] != 'N/A')
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.star,
-                                  color: Color(0xFFd4af37),
-                                  size: 16,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  mosque['rating'] ?? '',
-                                  style: TextStyle(
-                                    color: Color(0xFFd4af37),
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            color: Color(0xFF7a9a6b),
-                            size: 16,
-                          ),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              mosque['location'] ?? 'Unknown',
-                              style: TextStyle(
-                                color: Color(0xFFb0b0b0),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.directions,
-                            color: Color(0xFF7a9a6b),
-                            size: 16,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            mosque['distance'] ?? 'N/A',
-                            style: TextStyle(
-                              color: Color(0xFFb0b0b0),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                ],
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Color(0xFF4a7c5e),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  mosque['distance']?.toString() ?? '0 km',
+                  style: TextStyle(
+                    color: Color(0xFFd4af37),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
                   ),
-                );
-              },
-            ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -404,7 +482,6 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
 
   @override
   void dispose() {
-    _mapController?.dispose();
     super.dispose();
   }
 }

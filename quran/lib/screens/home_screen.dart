@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import 'prayer_times_screen.dart';
@@ -222,9 +223,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisSpacing: 16,
                         childAspectRatio: 1.0,
                         children: [
-                          _buildMenuItem(
-                            icon: Icons.schedule,
-                            label: 'Prayer Times',
+                          _buildMenuItemSvg(
+                            asset: 'assets/icons/prayer.svg',
+                            label: 'Prayer times',
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -243,8 +244,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           ),
-                          _buildMenuItem(
-                            icon: Icons.menu_book,
+                          _buildMenuItemSvg(
+                            asset: 'assets/icons/quran.svg',
                             label: 'Al-Quran',
                             onTap: () => Navigator.push(
                               context,
@@ -273,8 +274,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           ),
-                          _buildMenuItem(
-                            icon: Icons.settings_voice,
+                          _buildMenuItemSvg(
+                            asset: 'assets/icons/tasbeeh.svg',
                             label: 'Tasbeeh',
                             onTap: () => Navigator.push(
                               context,
@@ -293,8 +294,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           ),
-                          _buildMenuItem(
-                            icon: Icons.favorite,
+                          _buildMenuItemSvg(
+                            asset: 'assets/icons/duas.svg',
                             label: 'Duas',
                             onTap: () => Navigator.push(
                               context,
@@ -341,6 +342,44 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: Color(0xFFd4af37), size: 40),
+            SizedBox(height: 12),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItemSvg({
+    required String asset,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Color(0xFF1a472a).withOpacity(0.6),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Color(0xFF4a7c5e), width: 1.5),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SvgPicture.asset(
+              asset,
+              color: Color(0xFFd4af37),
+              width: 40,
+              height: 40,
+            ),
             SizedBox(height: 12),
             Text(
               label,
