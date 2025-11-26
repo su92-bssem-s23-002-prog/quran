@@ -103,7 +103,7 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
                 point: LatLng(lat, lng),
                 width: 36,
                 height: 36,
-                builder: (ctx) => GestureDetector(
+                child: GestureDetector(
                   onTap: () => _selectMosqueAndRoute(i),
                   child: Icon(Icons.location_on, color: Colors.redAccent),
                 ),
@@ -171,7 +171,7 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
         // center map on route midpoint
         if (_routePoints.isNotEmpty) {
           final mid = _routePoints[_routePoints.length ~/ 2];
-          _mapController.move(mid, _mapController.zoom);
+          _mapController.move(mid, 13.0);
         }
       });
     } catch (e) {
@@ -277,11 +277,13 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
                       child: FlutterMap(
                         mapController: _mapController,
                         options: MapOptions(
-                          center: userLat != null && userLng != null
+                          initialCenter: userLat != null && userLng != null
                               ? LatLng(userLat!, userLng!)
                               : LatLng(33.72, 73.04),
-                          zoom: 13.0,
-                          interactiveFlags: InteractiveFlag.none,
+                          initialZoom: 13.0,
+                          interactionOptions: InteractionOptions(
+                            flags: InteractiveFlag.none,
+                          ),
                         ),
                         children: [
                           TileLayer(
@@ -299,7 +301,7 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
                                   point: LatLng(userLat!, userLng!),
                                   width: 40,
                                   height: 40,
-                                  builder: (ctx) => Icon(
+                                  child: Icon(
                                     Icons.my_location,
                                     color: Color(0xFFd4af37),
                                   ),

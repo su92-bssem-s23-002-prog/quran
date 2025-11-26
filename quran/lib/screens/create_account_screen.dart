@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
 
@@ -15,6 +16,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   late TextEditingController _confirmPasswordController;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -30,6 +32,67 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _createAccount() async {
+    // Validate inputs
+    if (_emailController.text.trim().isEmpty) {
+      _showError('Please enter your email');
+      return;
+    }
+    if (_passwordController.text.isEmpty) {
+      _showError('Please enter a password');
+      return;
+    }
+    if (_passwordController.text.length < 6) {
+      _showError('Password must be at least 6 characters');
+      return;
+    }
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showError('Passwords do not match');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Create user with Firebase Auth
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
+
+      // Account created successfully
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = 'An error occurred';
+      if (e.code == 'weak-password') {
+        message = 'The password is too weak';
+      } else if (e.code == 'email-already-in-use') {
+        message = 'An account already exists for this email';
+      } else if (e.code == 'invalid-email') {
+        message = 'Invalid email address';
+      }
+      _showError(message);
+    } catch (e) {
+      _showError('Failed to create account. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   @override
@@ -246,14 +309,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HomeScreen(),
-                        ),
-                      );
-                    },
+                    onPressed: _isLoading ? null : _createAccount,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF1db854),
                       foregroundColor: Colors.white,
@@ -261,14 +317,26 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       elevation: 0,
+                      disabledBackgroundColor: Color(
+                        0xFF1db854,
+                      ).withOpacity(0.5),
                     ),
-                    child: Text(
-                      'Create Account',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: _isLoading
+                        ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'Create Account',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ),
                 SizedBox(height: 28),
