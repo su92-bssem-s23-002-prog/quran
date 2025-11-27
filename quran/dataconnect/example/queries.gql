@@ -1,0 +1,25 @@
+mutation CreateUser($username: String!, $email: String) @auth(level: USER) {
+  user_insert(data: {username: $username, email: $email, createdAt_expr: "request.time"})
+}
+
+query GetAyah @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
+  ayahs(limit: 1) {
+    id
+    textArabic
+  }
+}
+
+mutation CreateNote($ayahId: UUID!, $text: String!) @auth(level: USER) {
+  note_insert(data: {ayahId: $ayahId, userId_expr: "auth.uid", text: $text, createdAt_expr: "request.time"})
+}
+
+query ListSurahs @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
+  surahs {
+    id
+    number
+    nameEnglish
+    nameArabic
+    ayahCount
+    revelationPlace
+  }
+}

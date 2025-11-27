@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import '../services/api_service.dart';
 import 'prayer_times_screen.dart';
 import 'masjid_finder_screen.dart';
@@ -27,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String asarTime = '00:00';
   Map<String, dynamic>? prayerTimes;
   bool isLoading = true;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -34,13 +37,22 @@ class _HomeScreenState extends State<HomeScreen> {
     _initializeHome();
   }
 
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _initializeHome() async {
     try {
-      const String city = 'Rawalpindi';
-      const String country = 'Pakistan';
+      // Get device location
+      final position = await ApiService.getCurrentLocation();
 
-      // Get prayer times
-      final prayerData = await ApiService.getPrayerTimes(city, country);
+      // Get prayer times for current location
+      final prayerData = await ApiService.getPrayerTimesByCoords(
+        position.latitude,
+        position.longitude,
+      );
 
       // Get Islamic date
       final now = DateTime.now();
@@ -49,6 +61,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final islamicData = await ApiService.getIslamicDate(formattedDate);
 
       setState(() {
+        location =
+            '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}';
         prayerTimes = prayerData['data']?['timings'];
         asarTime = prayerTimes?['Asr'] ?? '00:00';
 
@@ -65,21 +79,19 @@ class _HomeScreenState extends State<HomeScreen> {
       print('Error initializing home: $e');
       setState(() {
         isLoading = false;
+        location = 'Location unavailable';
       });
       _updateTime();
     }
   }
 
   void _updateTime() {
-    Future.delayed(const Duration(seconds: 1), () {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         setState(() {
           currentTime = DateFormat('HH:mm').format(DateTime.now());
-          currentDate = DateFormat(
-            'EEEE, dd MMM',
-          ).format(DateTime.now()).toString();
+          currentDate = DateFormat('EEEE, dd MMM').format(DateTime.now());
         });
-        _updateTime();
       }
     });
   }
@@ -126,13 +138,73 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                           ),
-                          IconButton(
+                          PopupMenuButton<String>(
                             icon: Icon(
-                              Icons.settings,
+                              Icons.more_vert,
                               color: Color(0xFFd4af37),
                               size: 20,
                             ),
-                            onPressed: () {},
+                            color: Color(0xFF1a472a),
+                            onSelected: (value) async {
+                              if (value == 'logout') {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: Color(0xFF1a472a),
+                                    title: Text(
+                                      'Logout',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    content: Text(
+                                      'Are you sure you want to logout?',
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: Text(
+                                          'Cancel',
+                                          style: TextStyle(
+                                            color: Color(0xFFd4af37),
+                                          ),
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: Text(
+                                          'Logout',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  await FirebaseAuth.instance.signOut();
+                                }
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              PopupMenuItem(
+                                value: 'logout',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.logout,
+                                      color: Colors.red,
+                                      size: 18,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Logout',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

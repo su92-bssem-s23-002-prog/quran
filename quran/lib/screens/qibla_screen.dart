@@ -4,9 +4,6 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_compass/flutter_compass.dart';
-// dart:html is web-only; this file targets web when kIsWeb==true
-// Importing dart:html is safe here because you said you're testing in Chrome.
-import 'dart:html' as html;
 
 class QiblaScreen extends StatefulWidget {
   const QiblaScreen({super.key});
@@ -20,7 +17,6 @@ class _QiblaScreenState extends State<QiblaScreen> {
   bool isLoading = true;
   double? _heading;
   StreamSubscription<CompassEvent?>? _compassSub;
-  StreamSubscription<html.DeviceOrientationEvent>? _webOrientationSub;
 
   @override
   void initState() {
@@ -30,20 +26,10 @@ class _QiblaScreenState extends State<QiblaScreen> {
   }
 
   void _startCompass() {
-    // Web: use DeviceOrientationEvent (alpha) if available
+    // Web compass not supported in this version - would need conditional imports
+    // For now, only mobile compass works
     if (kIsWeb) {
-      try {
-        // Listen to DeviceOrientation events on web
-        _webOrientationSub = html.window.onDeviceOrientation.listen((ev) {
-          final head = ev.alpha; // degrees (0..360) or null
-          if (head != null) {
-            // Some browsers give heading relative to device; convert if needed
-            setState(() => _heading = head.toDouble());
-          }
-        });
-      } catch (e) {
-        print('Web orientation not available: $e');
-      }
+      print('Compass not available on web platform');
       return;
     }
 
@@ -381,7 +367,6 @@ class _QiblaScreenState extends State<QiblaScreen> {
   @override
   void dispose() {
     _compassSub?.cancel();
-    _webOrientationSub?.cancel();
     super.dispose();
   }
 }

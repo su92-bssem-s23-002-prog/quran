@@ -2,14 +2,21 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiService {
-  static const String aladhanBaseUrl = 'http://api.aladhan.com/v1';
+  static const String aladhanBaseUrl = 'https://api.aladhan.com/v1';
   static const String quranBaseUrl = 'https://api.alquran.cloud/v1';
   static const String mapboxBaseUrl = 'https://api.mapbox.com';
-  // Mapbox API token
-  static const String mapboxApiKey =
-      'pk.eyJ1Ijoic2hhaHphaWItMTIiLCJhIjoiY21od2J4emRoMDFscjJrcjB3ZnJvazQxciJ9.ru8tXxNxZKL9XhEPc1BGrw';
+
+  // Load Mapbox API key from environment with safety check
+  static String get mapboxApiKey {
+    try {
+      return dotenv.env['MAPBOX_API_KEY'] ?? '';
+    } catch (e) {
+      return ''; // Return empty if dotenv not initialized
+    }
+  }
 
   // Cache for full Quran Uthmani payload
   static Map<String, dynamic>? _quranCache;

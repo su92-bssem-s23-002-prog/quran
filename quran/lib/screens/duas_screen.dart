@@ -77,7 +77,16 @@ class _DuasScreenState extends State<DuasScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = {'All', ...duas.map((d) => d['category']!)};
+    // Use ordered list for consistent category ordering
+    final categories = [
+      'All',
+      'General',
+      'Repentance',
+      'Protection',
+      'Knowledge',
+      'Peace',
+      'Health',
+    ];
 
     return Scaffold(
       body: Container(

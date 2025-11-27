@@ -1,0 +1,36 @@
+mutation CreateDemoData @auth(level: PUBLIC, insecureReason: "This mutation is used to seed the database with example data, it does not expose any user information or functionality.") @transaction {
+  surah_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      number: 1,
+      nameEnglish: "Al-Fatiha",
+      nameArabic: "الفاتحة",
+      revelationPlace: "Mecca",
+      ayahCount: 7
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      number: 2,
+      nameEnglish: "Al-Baqarah",
+      nameArabic: "البقرة",
+      revelationPlace: "Medina",
+      ayahCount: 286
+    }
+  ])
+  ayah_insertMany(data: [
+    {
+      id: "650e8400-e29b-41d4-a716-446655440000",
+      surahId: "550e8400-e29b-41d4-a716-446655440000",
+      surahNumber: 1,
+      ayahNumber: 1,
+      textArabic: "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ"
+    },
+    {
+      id: "650e8400-e29b-41d4-a716-446655440001",
+      surahId: "550e8400-e29b-41d4-a716-446655440000",
+      surahNumber: 1,
+      ayahNumber: 2,
+      textArabic: "ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَـٰلَمِينَ"
+    }
+  ])
+}

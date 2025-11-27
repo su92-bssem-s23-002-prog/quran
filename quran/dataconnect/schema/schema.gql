@@ -1,0 +1,50 @@
+type User @table {
+  username: String!
+  createdAt: Timestamp!
+  email: String
+  lastLogin: Timestamp
+}
+
+type Surah @table {
+  number: Int!
+  nameArabic: String!
+  nameEnglish: String!
+  revelationPlace: String!
+  ayahCount: Int
+}
+
+type Ayah @table {
+  surahNumber: Int!
+  ayahNumber: Int!
+  textArabic: String!
+  surah: Surah
+  juzNumber: Int
+  hizbNumber: Int
+}
+
+type Translation @table {
+  ayah: Ayah!
+  language: String!
+  translator: String!
+  text: String!
+}
+
+type Tafsir @table {
+  ayah: Ayah!
+  scholar: String!
+  source: String!
+  text: String!
+}
+
+type Bookmark @table(key: ["user", "ayah"]) {
+  user: User!
+  ayah: Ayah!
+  createdAt: Timestamp!
+}
+
+type Note @table {
+  user: User!
+  ayah: Ayah!
+  text: String!
+  createdAt: Timestamp!
+}

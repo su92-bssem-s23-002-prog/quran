@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -35,6 +37,10 @@ class _LoginScreenState extends State<LoginScreen> {
       _showError('Please enter your email');
       return;
     }
+    if (!_isValidEmail(_emailController.text.trim())) {
+      _showError('Please enter a valid email address');
+      return;
+    }
     if (_passwordController.text.isEmpty) {
       _showError('Please enter your password');
       return;
@@ -48,6 +54,8 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+
+      // Auth successful via email/password
 
       // Login successful
       if (mounted) {
@@ -77,9 +85,190 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = 'Google sign-in failed';
+      if (e.code == 'account-exists-with-different-credential') {
+        message = 'An account already exists with this email';
+      }
+      _showError(message);
+    } catch (e) {
+      _showError('Failed to sign in with Google');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _signInWithFacebook() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final LoginResult result = await FacebookAuth.instance.login();
+
+      if (result.status == LoginStatus.success) {
+        final OAuthCredential credential = FacebookAuthProvider.credential(
+          result.accessToken!.tokenString,
+        );
+        await FirebaseAuth.instance.signInWithCredential(credential);
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        }
+      } else if (result.status == LoginStatus.cancelled) {
+        setState(() => _isLoading = false);
+      } else {
+        _showError('Facebook sign-in failed');
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      _showError('Failed to sign in with Facebook');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final emailController = TextEditingController();
+
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: Text(
+          'Reset Password',
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Enter your email address and we\'ll send you a link to reset your password.',
+              style: TextStyle(color: Colors.black54, fontSize: 14),
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'Email',
+                labelStyle: TextStyle(color: Color(0xFF1db854)),
+                prefixIcon: Icon(Icons.email, color: Color(0xFF1db854)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Color(0xFF1db854), width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+
+              if (email.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Please enter your email'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              if (!_isValidEmail(email)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Please enter a valid email'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              try {
+                await FirebaseAuth.instance.sendPasswordResetEmail(
+                  email: email,
+                );
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Password reset email sent! Check your inbox.',
+                    ),
+                    backgroundColor: Color(0xFF1db854),
+                  ),
+                );
+              } on FirebaseAuthException catch (e) {
+                String message = 'Failed to send reset email';
+                if (e.code == 'user-not-found') {
+                  message = 'No account found with this email';
+                } else if (e.code == 'invalid-email') {
+                  message = 'Invalid email address';
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(message), backgroundColor: Colors.red),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF1db854),
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Send Reset Link'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -224,9 +413,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
-                    onTap: () {
-                      // Handle forgot password
-                    },
+                    onTap: _showForgotPasswordDialog,
                     child: Text(
                       'Forgot Password?',
                       style: TextStyle(
@@ -301,7 +488,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 56,
                   child: OutlinedButton.icon(
-                    onPressed: () {},
+                    onPressed: _isLoading ? null : _signInWithGoogle,
                     icon: Icon(
                       Icons.g_mobiledata,
                       size: 24,
@@ -324,15 +511,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 SizedBox(height: 16),
-                // Apple Continue Button
+                // Facebook Continue Button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: Icon(Icons.apple, size: 24, color: Color(0xFF1a1a1a)),
+                    onPressed: _isLoading ? null : _signInWithFacebook,
+                    icon: Icon(
+                      Icons.facebook,
+                      size: 24,
+                      color: Color(0xFF1a1a1a),
+                    ),
                     label: Text(
-                      'Continue with Apple',
+                      'Continue with Facebook',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
 
@@ -40,6 +42,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       _showError('Please enter your email');
       return;
     }
+    if (!_isValidEmail(_emailController.text.trim())) {
+      _showError('Please enter a valid email address');
+      return;
+    }
     if (_passwordController.text.isEmpty) {
       _showError('Please enter a password');
       return;
@@ -57,11 +63,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
     try {
       // Create user with Firebase Auth
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
       // Account created successfully
       if (mounted) {
@@ -87,6 +92,108 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Trigger Google Sign In flow
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        // User canceled the sign-in
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Obtain auth details
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      // Create a new credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase with the Google credential
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      // Success - navigate to home
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = 'Google sign-in failed';
+      if (e.code == 'account-exists-with-different-credential') {
+        message = 'An account already exists with this email';
+      } else if (e.code == 'invalid-credential') {
+        message = 'Invalid credentials';
+      }
+      _showError(message);
+    } catch (e) {
+      _showError('Failed to sign in with Google. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _signInWithFacebook() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Trigger Facebook Sign In flow
+      final LoginResult result = await FacebookAuth.instance.login();
+
+      if (result.status == LoginStatus.success) {
+        // Create a credential from the access token
+        final OAuthCredential credential = FacebookAuthProvider.credential(
+          result.accessToken!.tokenString,
+        );
+
+        // Sign in to Firebase with the Facebook credential
+        await FirebaseAuth.instance.signInWithCredential(credential);
+
+        // Success - navigate to home
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        }
+      } else if (result.status == LoginStatus.cancelled) {
+        setState(() => _isLoading = false);
+        _showError('Facebook sign-in was cancelled');
+      } else {
+        setState(() => _isLoading = false);
+        _showError('Facebook sign-in failed: ${result.message}');
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = 'Facebook sign-in failed';
+      if (e.code == 'account-exists-with-different-credential') {
+        message = 'An account already exists with this email';
+      } else if (e.code == 'invalid-credential') {
+        message = 'Invalid credentials';
+      }
+      _showError(message);
+    } catch (e) {
+      _showError('Failed to sign in with Facebook. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
   void _showError(String message) {
@@ -367,7 +474,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   width: double.infinity,
                   height: 56,
                   child: OutlinedButton.icon(
-                    onPressed: () {},
+                    onPressed: _isLoading ? null : _signInWithGoogle,
                     icon: Icon(
                       Icons.g_mobiledata,
                       size: 24,
@@ -390,15 +497,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   ),
                 ),
                 SizedBox(height: 16),
-                // Apple Sign Up Button
+                // Facebook Sign Up Button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: Icon(Icons.apple, size: 24, color: Colors.white),
+                    onPressed: _isLoading ? null : _signInWithFacebook,
+                    icon: Icon(Icons.facebook, size: 24, color: Colors.white),
                     label: Text(
-                      'Sign up with Apple',
+                      'Sign up with Facebook',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
