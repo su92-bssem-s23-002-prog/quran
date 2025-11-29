@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import 'package:geolocator/geolocator.dart';
+import '../services/location_service.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 
 class QiblaScreen extends StatefulWidget {
@@ -53,13 +53,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
 
   Future<void> _loadQiblaDirection() async {
     try {
-      Position? pos;
-      try {
-        pos = await ApiService.getCurrentLocation();
-      } catch (e) {
-        print('Could not get device location, falling back to default: $e');
-        pos = null;
-      }
+      final pos = await LocationService.getPositionOrNull(context);
 
       final lat = pos?.latitude ?? 33.5731;
       final lon = pos?.longitude ?? 74.3365;
@@ -321,6 +315,29 @@ class _QiblaScreenState extends State<QiblaScreen> {
                             ),
                           ),
                           SizedBox(height: 20),
+                          // Retry button if location/sensor unavailable
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24.0,
+                            ),
+                            child: SizedBox(
+                              width: double.infinity,
+                              height: 44,
+                              child: OutlinedButton(
+                                onPressed: () async {
+                                  setState(() => isLoading = true);
+                                  await _loadQiblaDirection();
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: Color(0xFFd4af37)),
+                                ),
+                                child: Text(
+                                  'Retry Qibla',
+                                  style: TextStyle(color: Color(0xFFd4af37)),
+                                ),
+                              ),
+                            ),
+                          ),
                           // Direction Text
                           Container(
                             padding: EdgeInsets.all(20),

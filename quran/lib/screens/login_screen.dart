@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import '../services/google_auth_service.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'home_screen.dart';
 
@@ -89,22 +89,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn();
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return;
+      final user = await GoogleAuthService().signIn();
+      if (user == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return; // cancelled
       }
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      await FirebaseAuth.instance.signInWithCredential(credential);
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -113,10 +102,14 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      String message = 'Google sign-in failed';
-      if (e.code == 'account-exists-with-different-credential') {
-        message = 'An account already exists with this email';
-      }
+      debugPrint('Google sign-in error: code=${e.code} message=${e.message}');
+      String message = switch (e.code) {
+        'account-exists-with-different-credential' =>
+          'An account already exists with this email',
+        'network-request-failed' => 'Network error. Check your connection.',
+        'developer_error' => 'Configuration error (SHA-1 / google-services).',
+        _ => 'Google sign-in failed (${e.code})',
+      };
       _showError(message);
     } catch (e) {
       _showError('Failed to sign in with Google');

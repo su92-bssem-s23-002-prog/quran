@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import '../services/google_auth_service.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
@@ -98,28 +98,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Trigger Google Sign In flow
-      final GoogleSignIn googleSignIn = GoogleSignIn();
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-
-      if (googleUser == null) {
-        // User canceled the sign-in
-        setState(() => _isLoading = false);
-        return;
+      final user = await GoogleAuthService().signIn();
+      if (user == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return; // cancelled
       }
-
-      // Obtain auth details
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      // Create a new credential
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // Sign in to Firebase with the Google credential
-      await FirebaseAuth.instance.signInWithCredential(credential);
 
       // Success - navigate to home
       if (mounted) {
@@ -129,12 +112,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      String message = 'Google sign-in failed';
-      if (e.code == 'account-exists-with-different-credential') {
-        message = 'An account already exists with this email';
-      } else if (e.code == 'invalid-credential') {
-        message = 'Invalid credentials';
-      }
+      debugPrint('Google sign-in error: code=${e.code} message=${e.message}');
+      String message = switch (e.code) {
+        'account-exists-with-different-credential' =>
+          'An account already exists with this email',
+        'invalid-credential' => 'Invalid credentials',
+        'developer_error' => 'Configuration error (SHA-1 / google-services).',
+        _ => 'Google sign-in failed (${e.code})',
+      };
       _showError(message);
     } catch (e) {
       _showError('Failed to sign in with Google. Please try again.');

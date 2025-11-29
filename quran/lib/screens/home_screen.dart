@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../services/api_service.dart';
+import '../services/location_service.dart';
 import 'prayer_times_screen.dart';
 import 'masjid_finder_screen.dart';
 import 'al_quran_screen.dart';
@@ -13,6 +14,9 @@ import 'tasbeeh_screen.dart';
 import 'five_pillars_screen.dart';
 import 'duas_screen.dart';
 import 'about_us_screen.dart';
+import 'login_screen.dart';
+import '../services/google_auth_service.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -45,8 +49,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _initializeHome() async {
     try {
-      // Get device location
-      final position = await ApiService.getCurrentLocation();
+      final position = await LocationService.getPositionOrNull(context);
+      if (position == null) {
+        setState(() {
+          isLoading = false;
+          location = 'Location unavailable';
+        });
+        return;
+      }
 
       // Get prayer times for current location
       final prayerData = await ApiService.getPrayerTimesByCoords(
@@ -116,6 +126,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   child: Column(
                     children: [
+                      // Retry location button if unavailable
+                      if (location == 'Location unavailable')
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 44,
+                            child: OutlinedButton(
+                              onPressed: () async {
+                                setState(() => isLoading = true);
+                                await _initializeHome();
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Color(0xFFd4af37)),
+                              ),
+                              child: Text(
+                                'Retry Location',
+                                style: TextStyle(color: Color(0xFFd4af37)),
+                              ),
+                            ),
+                          ),
+                        ),
                       // Top Bar - Location and Settings
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -182,7 +214,25 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 );
                                 if (confirm == true) {
-                                  await FirebaseAuth.instance.signOut();
+                                  try {
+                                    await GoogleAuthService().signOut();
+                                  } catch (_) {
+                                    // fallback to Firebase signOut
+                                    await FirebaseAuth.instance.signOut();
+                                  }
+                                  try {
+                                    await FacebookAuth.instance.logOut();
+                                  } catch (_) {}
+                                  if (mounted) {
+                                    Navigator.pushAndRemoveUntil(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const LoginScreen(),
+                                      ),
+                                      (route) => false,
+                                    );
+                                  }
                                 }
                               }
                             },
