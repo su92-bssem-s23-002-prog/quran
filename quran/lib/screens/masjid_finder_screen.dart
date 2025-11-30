@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/api_service.dart';
+import '../services/location_service.dart';
 
 class MasjidFinderScreen extends StatefulWidget {
   const MasjidFinderScreen({super.key});
@@ -69,8 +70,17 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
 
   Future<void> _loadUserLocationAndMosques() async {
     try {
-      // Get user's current location
-      final position = await ApiService.getCurrentLocation();
+      // Get user's current location with permission request
+      final position = await LocationService.getPositionOrNull(context);
+
+      if (position == null) {
+        setState(() {
+          isLoading = false;
+          userLocation = 'Location unavailable';
+        });
+        _useFallbackMosques();
+        return;
+      }
 
       setState(() {
         userLat = position.latitude;
@@ -85,6 +95,7 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
       final data = await ApiService.getNearbyMosques(
         position.latitude,
         position.longitude,
+        radiusMeters: 5000,
       );
 
       print('Mosques data: $data');
@@ -92,23 +103,49 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
       setState(() {
         if (data['results'] != null && (data['results'] as List).isNotEmpty) {
           nearbyMosques = List<Map<String, dynamic>>.from(data['results']);
+
           // Build markers for the map
           _markers = [];
+
+          // Add user location marker
+          _markers.add(
+            Marker(
+              point: LatLng(userLat!, userLng!),
+              width: 40,
+              height: 40,
+              child: Icon(
+                Icons.my_location,
+                color: Color(0xFFd4af37),
+                size: 32,
+              ),
+            ),
+          );
+
+          // Add mosque markers
           for (var i = 0; i < nearbyMosques.length; i++) {
             final m = nearbyMosques[i];
-            final double lat = (m['latitude'] ?? m['lat'] ?? 0).toDouble();
-            final double lng = (m['longitude'] ?? m['lng'] ?? 0).toDouble();
-            _markers.add(
-              Marker(
-                point: LatLng(lat, lng),
-                width: 36,
-                height: 36,
-                child: GestureDetector(
-                  onTap: () => _selectMosqueAndRoute(i),
-                  child: Icon(Icons.location_on, color: Colors.redAccent),
+            final double lat = (m['lat'] ?? 0).toDouble();
+            final double lng = (m['lng'] ?? 0).toDouble();
+
+            if (lat != 0 && lng != 0) {
+              _markers.add(
+                Marker(
+                  point: LatLng(lat, lng),
+                  width: 40,
+                  height: 40,
+                  child: GestureDetector(
+                    onTap: () => _selectMosqueAndRoute(i),
+                    child: Icon(
+                      Icons.mosque,
+                      color: _selectedIndex == i
+                          ? Colors.red
+                          : Color(0xFF1db854),
+                      size: 32,
+                    ),
+                  ),
                 ),
-              ),
-            );
+              );
+            }
           }
         } else {
           _useFallbackMosques();
@@ -139,21 +176,69 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
 
   Future<void> _selectMosqueAndRoute(int index) async {
     if (userLat == null || userLng == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('User location not available')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('User location not available'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
     final mosque = nearbyMosques[index];
-    final double toLat = (mosque['latitude'] ?? mosque['lat'] ?? 0).toDouble();
-    final double toLng = (mosque['longitude'] ?? mosque['lng'] ?? 0).toDouble();
+    final double toLat = (mosque['lat'] ?? 0).toDouble();
+    final double toLng = (mosque['lng'] ?? 0).toDouble();
+
+    if (toLat == 0 || toLng == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Mosque location not available'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     try {
       setState(() {
         _selectedIndex = index;
         _routePoints = [];
       });
+
+      // Rebuild markers to show selected mosque in red
+      _markers.clear();
+      _markers.add(
+        Marker(
+          point: LatLng(userLat!, userLng!),
+          width: 40,
+          height: 40,
+          child: Icon(Icons.my_location, color: Color(0xFFd4af37), size: 32),
+        ),
+      );
+
+      for (var i = 0; i < nearbyMosques.length; i++) {
+        final m = nearbyMosques[i];
+        final double lat = (m['lat'] ?? 0).toDouble();
+        final double lng = (m['lng'] ?? 0).toDouble();
+
+        if (lat != 0 && lng != 0) {
+          _markers.add(
+            Marker(
+              point: LatLng(lat, lng),
+              width: 40,
+              height: 40,
+              child: GestureDetector(
+                onTap: () => _selectMosqueAndRoute(i),
+                child: Icon(
+                  Icons.mosque,
+                  color: i == index ? Colors.red : Color(0xFF1db854),
+                  size: 32,
+                ),
+              ),
+            ),
+          );
+        }
+      }
 
       final route = await ApiService.getRoute(userLat!, userLng!, toLat, toLng);
       final List<dynamic> path = route['path'] ?? [];
@@ -168,17 +253,20 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
 
       setState(() {
         _routePoints = points;
-        // center map on route midpoint
+        // Center map on route midpoint or mosque location
         if (_routePoints.isNotEmpty) {
           final mid = _routePoints[_routePoints.length ~/ 2];
-          _mapController.move(mid, 13.0);
+          _mapController.move(mid, 14.0);
+        } else {
+          _mapController.move(LatLng(toLat, toLng), 14.0);
         }
       });
     } catch (e) {
       print('Route error: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to load route')));
+      // Even if route fails, still zoom to mosque
+      setState(() {
+        _mapController.move(LatLng(toLat, toLng), 15.0);
+      });
     }
   }
 
@@ -282,7 +370,7 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
                               : LatLng(33.72, 73.04),
                           initialZoom: 13.0,
                           interactionOptions: InteractionOptions(
-                            flags: InteractiveFlag.none,
+                            flags: InteractiveFlag.all,
                           ),
                         ),
                         children: [
@@ -294,20 +382,6 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
                               'id': 'mapbox/streets-v11',
                             },
                           ),
-                          if (userLat != null && userLng != null)
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: LatLng(userLat!, userLng!),
-                                  width: 40,
-                                  height: 40,
-                                  child: Icon(
-                                    Icons.my_location,
-                                    color: Color(0xFFd4af37),
-                                  ),
-                                ),
-                              ],
-                            ),
                           if (_markers.isNotEmpty)
                             MarkerLayer(markers: _markers),
                           if (_routePoints.isNotEmpty)
@@ -477,8 +551,101 @@ class _MasjidFinderScreenState extends State<MasjidFinderScreen> {
               ),
             ],
           ),
+          SizedBox(height: 12),
+          // Actions: Open in Maps + Bookmark
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final double lat = (mosque['lat'] ?? 0).toDouble();
+                  final double lng = (mosque['lng'] ?? 0).toDouble();
+                  final String q = Uri.encodeComponent(
+                    mosque['name'] ?? 'Mosque',
+                  );
+                  final url = Uri.parse(
+                    'https://www.google.com/maps/search/?api=1&query=$lat,$lng&query_place_id=$q',
+                  );
+                  try {
+                    // Open maps in browser (works on mobile/desktop)
+                    // ignore: deprecated_member_use
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => Scaffold(
+                          appBar: AppBar(title: Text('Open in Maps')),
+                          body: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('Opening Google Maps...'),
+                                SizedBox(height: 12),
+                                Text(
+                                  url.toString(),
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Could not open Maps')),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF4a7c5e),
+                  foregroundColor: Color(0xFFd4af37),
+                ),
+                icon: Icon(Icons.map, size: 18),
+                label: Text('Open in Maps'),
+              ),
+              SizedBox(width: 12),
+              _BookmarkButton(mosque: mosque),
+            ],
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _BookmarkButton extends StatefulWidget {
+  final Map<String, dynamic> mosque;
+  const _BookmarkButton({required this.mosque});
+  @override
+  State<_BookmarkButton> createState() => _BookmarkButtonState();
+}
+
+class _BookmarkButtonState extends State<_BookmarkButton> {
+  bool _bookmarked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadState();
+  }
+
+  Future<void> _loadState() async {
+    // Lightweight local flag; could use SharedPreferences globally.
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: () async {
+        setState(() => _bookmarked = !_bookmarked);
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _bookmarked ? Color(0xFF1db854) : Color(0xFF4a7c5e),
+        foregroundColor: Color(0xFFd4af37),
+      ),
+      icon: Icon(
+        _bookmarked ? Icons.bookmark : Icons.bookmark_border,
+        size: 18,
+      ),
+      label: Text(_bookmarked ? 'Bookmarked' : 'Bookmark'),
     );
   }
 

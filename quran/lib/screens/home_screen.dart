@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../services/api_service.dart';
-import '../services/location_service.dart';
 import 'prayer_times_screen.dart';
 import 'masjid_finder_screen.dart';
 import 'al_quran_screen.dart';
@@ -26,12 +25,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String location = 'Rawalpindi, Pakistan';
   String currentTime = '00:00';
   String currentDate = '';
   String islamicDate = '';
-  String asarTime = '00:00';
-  Map<String, dynamic>? prayerTimes;
   bool isLoading = true;
   Timer? _timer;
 
@@ -48,22 +44,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initializeHome() async {
+    // Just initialize time and date, no location request
     try {
-      final position = await LocationService.getPositionOrNull(context);
-      if (position == null) {
-        setState(() {
-          isLoading = false;
-          location = 'Location unavailable';
-        });
-        return;
-      }
-
-      // Get prayer times for current location
-      final prayerData = await ApiService.getPrayerTimesByCoords(
-        position.latitude,
-        position.longitude,
-      );
-
       // Get Islamic date
       final now = DateTime.now();
       final formattedDate =
@@ -71,15 +53,9 @@ class _HomeScreenState extends State<HomeScreen> {
       final islamicData = await ApiService.getIslamicDate(formattedDate);
 
       setState(() {
-        location =
-            '${position.latitude.toStringAsFixed(2)}, ${position.longitude.toStringAsFixed(2)}';
-        prayerTimes = prayerData['data']?['timings'];
-        asarTime = prayerTimes?['Asr'] ?? '00:00';
-
         final hijri = islamicData['data']?['hijri'];
         islamicDate =
             '${hijri?['day']} ${hijri?['month']?['en']} ${hijri?['year']} AH';
-
         isLoading = false;
       });
 
@@ -89,7 +65,6 @@ class _HomeScreenState extends State<HomeScreen> {
       print('Error initializing home: $e');
       setState(() {
         isLoading = false;
-        location = 'Location unavailable';
       });
       _updateTime();
     }
@@ -126,50 +101,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   child: Column(
                     children: [
-                      // Retry location button if unavailable
-                      if (location == 'Location unavailable')
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12.0),
-                          child: SizedBox(
-                            width: double.infinity,
-                            height: 44,
-                            child: OutlinedButton(
-                              onPressed: () async {
-                                setState(() => isLoading = true);
-                                await _initializeHome();
-                              },
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: Color(0xFFd4af37)),
-                              ),
-                              child: Text(
-                                'Retry Location',
-                                style: TextStyle(color: Color(0xFFd4af37)),
-                              ),
-                            ),
-                          ),
-                        ),
-                      // Top Bar - Location and Settings
+                      // Top Bar - Settings Only
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.location_on,
-                                color: Color(0xFFd4af37),
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                location,
-                                style: TextStyle(
-                                  color: Color(0xFFd4af37),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
                           PopupMenuButton<String>(
                             icon: Icon(
                               Icons.more_vert,

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../screens/reading_mode_selection_screen.dart';
+import '../screens/quran_pdf_viewer_screen.dart';
 
 class AlQuranScreen extends StatefulWidget {
   const AlQuranScreen({super.key});
@@ -48,78 +48,29 @@ class _AlQuranScreenState extends State<AlQuranScreen> {
                   ],
                 ),
               ),
-              // Select Reading Mode Title
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                child: Text(
-                  'Select Reading Mode',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              // Three Reading Mode Options
+              // Center content
               Expanded(
-                child: ListView(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  children: [
-                    // Option 1: Quran Text (Plain Text)
-                    _buildModeCard(
-                      title: 'Quran Text',
-                      subtitle: 'Simple text for easy reading',
-                      icon: Icons.menu_book,
-                      color: Color(0xFF4a7c5e),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ReadingModeSelectionScreen(
-                              readingMode: 'plain_text',
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    SizedBox(height: 16),
-                    // Option 2: Tajweed Rules
-                    _buildModeCard(
-                      title: 'Tajweed Rules',
-                      subtitle: 'Learn Tajweed rules with explanations',
-                      icon: Icons.school,
-                      color: Color(0xFFd4af37),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ReadingModeSelectionScreen(
-                              readingMode: 'tajweed_rules',
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    SizedBox(height: 16),
-                    // Option 3: Tajweed Quran (Colored)
-                    _buildModeCard(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: _buildModeCard(
                       title: 'Tajweed Quran',
-                      subtitle: 'Colored text with Tajweed rules',
-                      icon: Icons.color_lens,
+                      subtitle: 'Read the complete Quran with Tajweed',
+                      icon: Icons.menu_book,
                       color: Color(0xFF1db854),
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ReadingModeSelectionScreen(
-                              readingMode: 'tajweed_quran',
+                            builder: (context) => QuranPdfViewerScreen(
+                              pdfAssetPath: 'assets/quran_pdfs/Quran.pdf',
+                              title: 'Tajweed Quran',
                             ),
                           ),
                         );
                       },
                     ),
-                    SizedBox(height: 30),
-                  ],
+                  ),
                 ),
               ),
             ],

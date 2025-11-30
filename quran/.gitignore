@@ -55,3 +55,6 @@ lib/firebase_options.dart
 
 # Workspace files
 *.code-workspace
+
+# Large PDF files (download separately)
+assets/quran_pdfs/*.pdf

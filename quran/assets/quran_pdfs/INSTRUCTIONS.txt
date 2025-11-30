@@ -1,0 +1,8 @@
+📄 PLACE YOUR PDF FILES HERE
+
+Required files:
+1. quran_text.pdf
+2. tajweed_rules.pdf  
+3. tajweed_quran.pdf
+
+See README.md for detailed instructions.
