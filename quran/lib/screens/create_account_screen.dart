@@ -13,6 +13,7 @@ class CreateAccountScreen extends StatefulWidget {
 }
 
 class _CreateAccountScreenState extends State<CreateAccountScreen> {
+  late TextEditingController _usernameController;
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
   late TextEditingController _confirmPasswordController;
@@ -23,6 +24,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   @override
   void initState() {
     super.initState();
+    _usernameController = TextEditingController();
     _emailController = TextEditingController();
     _passwordController = TextEditingController();
     _confirmPasswordController = TextEditingController();
@@ -30,6 +32,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   @override
   void dispose() {
+    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -38,6 +41,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   Future<void> _createAccount() async {
     // Validate inputs
+    if (_usernameController.text.trim().isEmpty) {
+      _showError('Please enter your username');
+      return;
+    }
     if (_emailController.text.trim().isEmpty) {
       _showError('Please enter your email');
       return;
@@ -63,10 +70,17 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
     try {
       // Create user with Firebase Auth
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+      final userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
+
+      // Update user profile with username
+      await userCredential.user?.updateDisplayName(
+        _usernameController.text.trim(),
       );
+      await userCredential.user?.reload();
 
       // Account created successfully
       if (mounted) {
@@ -229,6 +243,52 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   style: TextStyle(fontSize: 16, color: Color(0xFFb0b0b0)),
                 ),
                 SizedBox(height: 40),
+                // Username Field
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Username',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    TextField(
+                      controller: _usernameController,
+                      style: TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Enter your username',
+                        hintStyle: TextStyle(color: Color(0xFF7a9a6b)),
+                        prefixIcon: Icon(
+                          Icons.person_outline,
+                          color: Color(0xFFd4af37),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: Color(0xFF4a7c5e)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: Color(0xFF4a7c5e),
+                            width: 1.5,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: Color(0xFF6b8e3e),
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 24),
                 // Email Field
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -138,11 +138,11 @@ class _QuranPdfViewerScreenState extends State<QuranPdfViewerScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      onPressed: currentPage > 0
-                          ? () => pdfViewController?.setPage(currentPage - 1)
+                      onPressed: currentPage < totalPages - 1
+                          ? () => pdfViewController?.setPage(currentPage + 1)
                           : null,
                       icon: const Icon(Icons.chevron_left),
-                      color: currentPage > 0
+                      color: currentPage < totalPages - 1
                           ? const Color(0xFFd4af37)
                           : Colors.grey,
                       iconSize: 32,
@@ -163,11 +163,11 @@ class _QuranPdfViewerScreenState extends State<QuranPdfViewerScreen> {
                     ),
                     const SizedBox(width: 24),
                     IconButton(
-                      onPressed: currentPage < totalPages - 1
-                          ? () => pdfViewController?.setPage(currentPage + 1)
+                      onPressed: currentPage > 0
+                          ? () => pdfViewController?.setPage(currentPage - 1)
                           : null,
                       icon: const Icon(Icons.chevron_right),
-                      color: currentPage < totalPages - 1
+                      color: currentPage > 0
                           ? const Color(0xFFd4af37)
                           : Colors.grey,
                       iconSize: 32,
@@ -198,14 +198,15 @@ class _QuranPdfViewerScreenState extends State<QuranPdfViewerScreen> {
                   ? PDFView(
                       filePath: localPdfPath,
                       enableSwipe: true,
-                      swipeHorizontal: false,
-                      autoSpacing: false,
+                      swipeHorizontal: true,
+                      autoSpacing: true,
                       pageFling: true,
                       pageSnap: true,
                       defaultPage: currentPage,
-                      fitPolicy: FitPolicy.BOTH,
+                      fitPolicy: FitPolicy.WIDTH,
                       preventLinkNavigation: false,
                       backgroundColor: const Color(0xFF0d2818),
+                      nightMode: false,
                       onRender: (pages) {
                         setState(() {
                           totalPages = pages ?? 0;

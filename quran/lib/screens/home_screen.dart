@@ -28,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String currentTime = '00:00';
   String currentDate = '';
   String islamicDate = '';
+  String username = '';
   bool isLoading = true;
   Timer? _timer;
 
@@ -44,8 +45,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initializeHome() async {
-    // Just initialize time and date, no location request
     try {
+      // Get username from Firebase Auth
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        username = user.displayName ?? 'User';
+      }
+
       // Get Islamic date
       final now = DateTime.now();
       final formattedDate =
@@ -59,7 +65,6 @@ class _HomeScreenState extends State<HomeScreen> {
         isLoading = false;
       });
 
-      // Update time every second
       _updateTime();
     } catch (e) {
       print('Error initializing home: $e');
@@ -79,6 +84,155 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     });
+  }
+
+  void _showProfileBottomSheet() {
+    final user = FirebaseAuth.instance.currentUser;
+    final userEmail = user?.email ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1a472a), Color(0xFF0d2818)],
+          ),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                margin: EdgeInsets.only(top: 12, bottom: 20),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Color(0xFFd4af37).withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Profile Picture
+              Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFd4af37), Color(0xFFb8941f)],
+                  ),
+                  border: Border.all(color: Color(0xFFd4af37), width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0xFFd4af37).withOpacity(0.3),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    username.isNotEmpty ? username[0].toUpperCase() : 'U',
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0d2818),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+              // Username
+              Text(
+                username,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 6),
+              // Email
+              Text(
+                userEmail,
+                style: TextStyle(fontSize: 14, color: Color(0xFFb0b0b0)),
+              ),
+              SizedBox(height: 24),
+              Divider(color: Color(0xFF4a7c5e), thickness: 1, height: 1),
+              // Logout Option
+              ListTile(
+                leading: Icon(Icons.logout, color: Colors.red),
+                title: Text(
+                  'Logout',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      backgroundColor: Color(0xFF1a472a),
+                      title: Text(
+                        'Logout',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      content: Text(
+                        'Are you sure you want to logout?',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(color: Color(0xFFd4af37)),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: Text(
+                            'Logout',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    try {
+                      await GoogleAuthService().signOut();
+                    } catch (_) {
+                      await FirebaseAuth.instance.signOut();
+                    }
+                    try {
+                      await FacebookAuth.instance.logOut();
+                    } catch (_) {}
+                    if (mounted) {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LoginScreen(),
+                        ),
+                        (route) => false,
+                      );
+                    }
+                  }
+                },
+              ),
+              SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -101,95 +255,52 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   child: Column(
                     children: [
-                      // Top Bar - Settings Only
+                      // Top Bar - User Profile
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          PopupMenuButton<String>(
-                            icon: Icon(
-                              Icons.more_vert,
-                              color: Color(0xFFd4af37),
-                              size: 20,
+                          Expanded(
+                            child: Text(
+                              'Assalamu Alaikum,\n$username',
+                              style: TextStyle(
+                                color: Color(0xFFd4af37),
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                height: 1.3,
+                              ),
                             ),
-                            color: Color(0xFF1a472a),
-                            onSelected: (value) async {
-                              if (value == 'logout') {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    backgroundColor: Color(0xFF1a472a),
-                                    title: Text(
-                                      'Logout',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                    content: Text(
-                                      'Are you sure you want to logout?',
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, false),
-                                        child: Text(
-                                          'Cancel',
-                                          style: TextStyle(
-                                            color: Color(0xFFd4af37),
-                                          ),
-                                        ),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, true),
-                                        child: Text(
-                                          'Logout',
-                                          style: TextStyle(color: Colors.red),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm == true) {
-                                  try {
-                                    await GoogleAuthService().signOut();
-                                  } catch (_) {
-                                    // fallback to Firebase signOut
-                                    await FirebaseAuth.instance.signOut();
-                                  }
-                                  try {
-                                    await FacebookAuth.instance.logOut();
-                                  } catch (_) {}
-                                  if (mounted) {
-                                    Navigator.pushAndRemoveUntil(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const LoginScreen(),
-                                      ),
-                                      (route) => false,
-                                    );
-                                  }
-                                }
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              PopupMenuItem(
-                                value: 'logout',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.logout,
-                                      color: Colors.red,
-                                      size: 18,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Logout',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
+                          ),
+                          GestureDetector(
+                            onTap: _showProfileBottomSheet,
+                            child: Container(
+                              width: 45,
+                              height: 45,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFFd4af37),
+                                    Color(0xFFb8941f),
                                   ],
                                 ),
+                                border: Border.all(
+                                  color: Color(0xFFd4af37),
+                                  width: 2,
+                                ),
                               ),
-                            ],
+                              child: Center(
+                                child: Text(
+                                  username.isNotEmpty
+                                      ? username[0].toUpperCase()
+                                      : 'U',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0d2818),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
