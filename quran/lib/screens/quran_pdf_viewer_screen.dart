@@ -36,6 +36,20 @@ class _QuranPdfViewerScreenState extends State<QuranPdfViewerScreen> {
 
   Future<void> _loadPdfFromAssets() async {
     try {
+      // Check if the path is already a local file path (from extraction)
+      if (widget.pdfAssetPath.startsWith('/')) {
+        // It's already a local file path, use it directly
+        final file = File(widget.pdfAssetPath);
+        if (await file.exists()) {
+          setState(() {
+            localPdfPath = widget.pdfAssetPath;
+            isLoading = false;
+          });
+          return;
+        }
+      }
+
+      // Otherwise, load from assets (for Tajweed Quran, etc.)
       final ByteData bytes = await rootBundle.load(widget.pdfAssetPath);
       final String dir = (await getApplicationDocumentsDirectory()).path;
       final String path = '$dir/${widget.pdfAssetPath.split('/').last}';
@@ -123,6 +137,15 @@ class _QuranPdfViewerScreenState extends State<QuranPdfViewerScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Bookmarks',
+                      icon: const Icon(
+                        Icons.bookmarks,
+                        color: Color(0xFFd4af37),
+                      ),
+                      onPressed: _showBookmarksSheet,
+                    ),
                   ],
                 ),
               ),
@@ -137,7 +160,9 @@ class _QuranPdfViewerScreenState extends State<QuranPdfViewerScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Left button advances to NEXT (to match left-to-right swipe = next)
                     IconButton(
+                      tooltip: 'Next page',
                       onPressed: currentPage < totalPages - 1
                           ? () => pdfViewController?.setPage(currentPage + 1)
                           : null,
@@ -162,7 +187,9 @@ class _QuranPdfViewerScreenState extends State<QuranPdfViewerScreen> {
                       ),
                     ),
                     const SizedBox(width: 24),
+                    // Right button goes to PREVIOUS
                     IconButton(
+                      tooltip: 'Previous page',
                       onPressed: currentPage > 0
                           ? () => pdfViewController?.setPage(currentPage - 1)
                           : null,
@@ -195,50 +222,66 @@ class _QuranPdfViewerScreenState extends State<QuranPdfViewerScreen> {
                       ),
                     )
                   : localPdfPath != null
-                  ? PDFView(
-                      filePath: localPdfPath,
-                      enableSwipe: true,
-                      swipeHorizontal: true,
-                      autoSpacing: true,
-                      pageFling: true,
-                      pageSnap: true,
-                      defaultPage: currentPage,
-                      fitPolicy: FitPolicy.WIDTH,
-                      preventLinkNavigation: false,
-                      backgroundColor: const Color(0xFF0d2818),
-                      nightMode: false,
-                      onRender: (pages) {
-                        setState(() {
-                          totalPages = pages ?? 0;
-                        });
-                      },
-                      onViewCreated: (PDFViewController vc) {
-                        pdfViewController = vc;
-                        if (currentPage > 0) {
-                          pdfViewController?.setPage(currentPage);
+                  ? GestureDetector(
+                      onHorizontalDragEnd: (details) {
+                        // Left-to-right swipe (positive velocity) = next page
+                        if (details.primaryVelocity! > 0) {
+                          if (currentPage < totalPages - 1) {
+                            pdfViewController?.setPage(currentPage + 1);
+                          }
+                        }
+                        // Right-to-left swipe (negative velocity) = previous page
+                        else if (details.primaryVelocity! < 0) {
+                          if (currentPage > 0) {
+                            pdfViewController?.setPage(currentPage - 1);
+                          }
                         }
                       },
-                      onPageChanged: (int? page, int? total) async {
-                        setState(() {
-                          currentPage = page ?? 0;
-                          totalPages = total ?? 0;
-                        });
-                        await _persistReadingState();
-                      },
-                      onError: (error) {
-                        debugPrint('PDF Error: $error');
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error: $error'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      },
-                      onPageError: (page, error) {
-                        debugPrint('Page $page Error: $error');
-                      },
+                      child: PDFView(
+                        filePath: localPdfPath,
+                        enableSwipe: false,
+                        swipeHorizontal: false,
+                        autoSpacing: true,
+                        pageFling: false,
+                        pageSnap: true,
+                        defaultPage: currentPage,
+                        fitPolicy: FitPolicy.WIDTH,
+                        preventLinkNavigation: false,
+                        backgroundColor: const Color(0xFF0d2818),
+                        nightMode: false,
+                        onRender: (pages) {
+                          setState(() {
+                            totalPages = pages ?? 0;
+                          });
+                        },
+                        onViewCreated: (PDFViewController vc) {
+                          pdfViewController = vc;
+                          if (currentPage > 0) {
+                            pdfViewController?.setPage(currentPage);
+                          }
+                        },
+                        onPageChanged: (int? page, int? total) async {
+                          setState(() {
+                            currentPage = page ?? 0;
+                            totalPages = total ?? 0;
+                          });
+                          await _persistReadingState();
+                        },
+                        onError: (error) {
+                          debugPrint('PDF Error: $error');
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: $error'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                        onPageError: (page, error) {
+                          debugPrint('Page $page Error: $error');
+                        },
+                      ),
                     )
                   : Center(
                       child: Column(
@@ -409,6 +452,162 @@ class _QuranPdfViewerScreenState extends State<QuranPdfViewerScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showBookmarksSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0d2818),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final TextEditingController searchCtrl = TextEditingController();
+        List<int> filtered = [...bookmarks]..sort();
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            void applyFilter() {
+              final q = searchCtrl.text.trim();
+              final all = [...bookmarks]..sort();
+              if (q.isEmpty) {
+                filtered = all;
+              } else {
+                final n = int.tryParse(q);
+                if (n == null) {
+                  filtered = all;
+                } else {
+                  filtered = all.where((p) => (p + 1) == n).toList();
+                }
+              }
+              setModalState(() {});
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 12,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Bookmarks',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: bookmarks.isEmpty
+                            ? null
+                            : () async {
+                                setState(() => bookmarks.clear());
+                                await _persistReadingState();
+                                applyFilter();
+                              },
+                        icon: const Icon(Icons.clear, color: Colors.redAccent),
+                        label: const Text(
+                          'Clear all',
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: searchCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Search by page number',
+                      labelStyle: TextStyle(color: Colors.white70),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFFd4af37)),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFFd4af37)),
+                      ),
+                    ),
+                    onChanged: (_) => applyFilter(),
+                  ),
+                  const SizedBox(height: 12),
+                  if (filtered.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Text(
+                        'No bookmarks found.',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    )
+                  else
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, i) {
+                          final p = filtered[i];
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1a472a),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFd4af37),
+                              ),
+                            ),
+                            child: ListTile(
+                              title: Text(
+                                'Page ${p + 1}',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Open',
+                                    icon: const Icon(
+                                      Icons.open_in_new,
+                                      color: Color(0xFFd4af37),
+                                    ),
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      pdfViewController?.setPage(p);
+                                    },
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Delete',
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.redAccent,
+                                    ),
+                                    onPressed: () async {
+                                      setState(() => bookmarks.remove(p));
+                                      await _persistReadingState();
+                                      applyFilter();
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

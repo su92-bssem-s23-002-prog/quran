@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/quran_pdf_viewer_screen.dart';
+import '../services/zip_pdf_extractor.dart';
 
 class AlQuranScreen extends StatefulWidget {
   const AlQuranScreen({super.key});
@@ -48,28 +49,115 @@ class _AlQuranScreenState extends State<AlQuranScreen> {
                   ],
                 ),
               ),
-              // Center content
+              // Selection cards
               Expanded(
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: _buildModeCard(
-                      title: 'Tajweed Quran',
-                      subtitle: 'Read the complete Quran with Tajweed',
-                      icon: Icons.menu_book,
-                      color: Color(0xFF1db854),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => QuranPdfViewerScreen(
-                              pdfAssetPath: 'assets/quran_pdfs/Quran.pdf',
-                              title: 'Tajweed Quran',
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildModeCard(
+                        title: 'Tajweed Quran',
+                        subtitle: 'Read the complete Quran with Tajweed',
+                        icon: Icons.menu_book,
+                        color: Color(0xFF1db854),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => QuranPdfViewerScreen(
+                                pdfAssetPath: 'assets/quran_pdfs/Quran.pdf',
+                                title: 'Tajweed Quran',
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          );
+                        },
+                      ),
+                      SizedBox(height: 16),
+                      _buildModeCard(
+                        title: 'Quran with Translation',
+                        subtitle: 'Read Quran with Urdu/English translation',
+                        icon: Icons.translate,
+                        color: Color(0xFFd4af37),
+                        onTap: () async {
+                          // Use bundled asset ZIP path
+                          const assetZipPath =
+                              'assets/quran_pdfs/quran-shareef-with-urdu-translation.zip';
+
+                          // Show simple progress dialog
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (_) => const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            ),
+                          );
+                          try {
+                            final pdfPaths =
+                                await ZipPdfExtractor.extractFromAsset(
+                                  assetZipPath: assetZipPath,
+                                );
+                            Navigator.of(context).pop(); // close progress
+
+                            if (pdfPaths.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('No PDFs found in ZIP.'),
+                                ),
+                              );
+                              return;
+                            }
+
+                            // Prefer first PDF; could add file selection if multiple
+                            final firstPdf = pdfPaths.first;
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => QuranPdfViewerScreen(
+                                  pdfAssetPath: firstPdf,
+                                  title: 'Quran with Translation',
+                                ),
+                              ),
+                            );
+                          } catch (e) {
+                            Navigator.of(context).pop(); // close progress
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to extract ZIP: $e'),
+                                action: SnackBarAction(
+                                  label: 'Retry',
+                                  onPressed: () async {
+                                    // simple retry
+                                    try {
+                                      final pdfPaths =
+                                          await ZipPdfExtractor.extractFromAsset(
+                                            assetZipPath: assetZipPath,
+                                          );
+                                      if (pdfPaths.isNotEmpty) {
+                                        final firstPdf = pdfPaths.first;
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                QuranPdfViewerScreen(
+                                                  pdfAssetPath: firstPdf,
+                                                  title:
+                                                      'Quran with Translation',
+                                                ),
+                                          ),
+                                        );
+                                      }
+                                    } catch (_) {}
+                                  },
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
+import 'package:intl/intl.dart';
 
 // This screen now requests device location and fetches prayer times for that location.
 
@@ -18,6 +20,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   @override
   void initState() {
     super.initState();
+    NotificationService.init();
+    NotificationService.requestPermissions();
     _loadPrayerTimes();
   }
 
@@ -38,12 +42,50 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
         prayerTimes = data['data']?['timings'];
         isLoading = false;
       });
+
+      // Schedule notifications for today's prayers
+      _scheduleTodayNotifications(prayerTimes!);
     } catch (e) {
       print('Error loading prayer times for current location: $e');
       setState(() {
         errorMsg = e.toString();
         isLoading = false;
       });
+    }
+  }
+
+  void _scheduleTodayNotifications(Map<String, dynamic> timings) {
+    final now = DateTime.now();
+    final df = DateFormat('HH:mm');
+    final entries = <MapEntry<String, String>>[
+      MapEntry('Fajr', timings['Fajr'] ?? ''),
+      MapEntry('Dhuhr', timings['Dhuhr'] ?? ''),
+      MapEntry('Asr', timings['Asr'] ?? ''),
+      MapEntry('Maghrib', timings['Maghrib'] ?? ''),
+      MapEntry('Isha', timings['Isha'] ?? ''),
+    ];
+
+    for (final e in entries) {
+      final raw = e.value.replaceAll(' (PKT)', '').replaceAll(' (GMT)', '');
+      DateTime? time;
+      try {
+        final parsed = df.parse(raw);
+        time = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          parsed.hour,
+          parsed.minute,
+        );
+      } catch (_) {
+        continue;
+      }
+      NotificationService.schedulePrayerNotification(
+        idKey: 'prayer_${e.key}_${time.toIso8601String()}',
+        title: '${e.key} Time',
+        body: 'It\'s time for ${e.key}.',
+        scheduledTime: time,
+      );
     }
   }
 
