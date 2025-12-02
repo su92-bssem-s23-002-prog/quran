@@ -59,6 +59,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     ];
 
     return Scaffold(
+      backgroundColor: const Color(0xFF0d2818),
+      extendBody: true,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -68,6 +70,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
           ),
         ),
         child: SafeArea(
+          top: true,
+          bottom: false,
           child: isLoading
               ? Center(
                   child: CircularProgressIndicator(color: Color(0xFFd4af37)),
@@ -93,7 +97,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                   ),
                 )
               : SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: EdgeInsets.only(left: 16, right: 16, top: 16),
                   child: Column(
                     children: [
                       // Header
@@ -120,48 +124,58 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                       ),
                       SizedBox(height: 30),
                       // Prayer Times List
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: NeverScrollableScrollPhysics(),
-                        itemCount: prayersList.length,
-                        itemBuilder: (context, index) {
-                          final prayer = prayersList[index];
-                          final time = prayerTimes?[prayer['key']] ?? '--:--';
-                          return Container(
-                            margin: EdgeInsets.only(bottom: 12),
-                            padding: EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Color(0xFF1a472a).withOpacity(0.6),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Color(0xFF4a7c5e),
-                                width: 1.5,
+                      MediaQuery.removePadding(
+                        removeBottom: true,
+                        context: context,
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          physics: NeverScrollableScrollPhysics(),
+                          itemCount: prayersList.length,
+                          itemBuilder: (context, index) {
+                            final prayer = prayersList[index];
+                            final time = prayerTimes?[prayer['key']] ?? '--:--';
+                            return Container(
+                              margin: EdgeInsets.only(
+                                bottom: index == prayersList.length - 1
+                                    ? 0
+                                    : 12,
                               ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  prayer['name'] as String,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Color(0xFF1a472a).withOpacity(0.6),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Color(0xFF4a7c5e),
+                                  width: 1.5,
                                 ),
-                                Text(
-                                  time,
-                                  style: TextStyle(
-                                    color: Color(0xFFd4af37),
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    prayer['name'] as String,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                                  Text(
+                                    time,
+                                    style: TextStyle(
+                                      color: Color(0xFFd4af37),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                       ),
+                      SizedBox(height: 16),
                     ],
                   ),
                 ),

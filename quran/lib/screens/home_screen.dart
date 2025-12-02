@@ -16,6 +16,7 @@ import 'about_us_screen.dart';
 import 'login_screen.dart';
 import '../services/google_auth_service.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'ai_chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -479,6 +480,16 @@ class _HomeScreenState extends State<HomeScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const AboutUsScreen(),
+                              ),
+                            ),
+                          ),
+                          _buildMenuItem(
+                            icon: Icons.psychology,
+                            label: 'AI Q&A',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AiChatScreen(),
                               ),
                             ),
                           ),
