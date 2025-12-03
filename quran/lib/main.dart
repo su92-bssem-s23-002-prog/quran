@@ -1,26 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'firebase_options.dart';
 import 'screens/create_account_screen.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Load .env file with error handling for web/Windows
-  try {
-    await dotenv.load(fileName: ".env");
-    final hasGeminiKey = (dotenv.env['GEMINI_API_KEY'] ?? '').isNotEmpty;
-    if (hasGeminiKey) {
-      print('🔐 Env loaded: GEMINI_API_KEY detected');
-    } else {
-      print('⚠️ Env loaded: GEMINI_API_KEY missing');
-    }
-  } catch (e) {
-    print('Warning: Could not load .env file: $e');
-  }
 
   try {
     await Firebase.initializeApp(

@@ -66,10 +66,15 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     ];
 
     for (final e in entries) {
-      final raw = e.value.replaceAll(' (PKT)', '').replaceAll(' (GMT)', '');
+      final raw = e.value
+          .replaceAll(' (PKT)', '')
+          .replaceAll(' (GMT)', '')
+          .trim();
+      // Round the time before parsing
+      final roundedTime = ApiService.roundPrayerTime(raw);
       DateTime? time;
       try {
-        final parsed = df.parse(raw);
+        final parsed = df.parse(roundedTime);
         time = DateTime(
           now.year,
           now.month,
@@ -77,15 +82,21 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
           parsed.hour,
           parsed.minute,
         );
-      } catch (_) {
+
+        // Only schedule if time is in the future
+        if (time.isAfter(now)) {
+          NotificationService.schedulePrayerNotification(
+            idKey: 'prayer_${e.key}_${time.toIso8601String()}',
+            title: '${e.key} Prayer Time',
+            body: 'It\'s time for ${e.key} prayer.',
+            scheduledTime: time,
+          );
+          print('✅ Scheduled ${e.key} notification for $roundedTime');
+        }
+      } catch (ex) {
+        print('⚠️ Failed to schedule ${e.key}: $ex');
         continue;
       }
-      NotificationService.schedulePrayerNotification(
-        idKey: 'prayer_${e.key}_${time.toIso8601String()}',
-        title: '${e.key} Time',
-        body: 'It\'s time for ${e.key}.',
-        scheduledTime: time,
-      );
     }
   }
 
@@ -204,7 +215,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                                     ),
                                   ),
                                   Text(
-                                    time,
+                                    ApiService.roundPrayerTime(time),
                                     style: TextStyle(
                                       color: Color(0xFFd4af37),
                                       fontSize: 18,

@@ -101,7 +101,7 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                       ),
                       SizedBox(height: 12),
                       Text(
-                        'The Qur\'an App is a comprehensive Islamic application designed to help Muslims connect with their faith. It provides essential Islamic tools and resources including prayer times, Qibla direction, Islamic calendar, and the complete Qur\'an.',
+                        'The Qur\'an App is a comprehensive Islamic application designed to help Muslims connect with their faith. It provides essential Islamic tools and resources including prayer times, Qibla direction, Islamic calendar, digital Tasbeeh counter, and complete Qur\'an with Tajweed in 30 Juz.',
                         style: TextStyle(
                           color: Color(0xFFb0b0b0),
                           fontSize: 13,
@@ -135,42 +135,42 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                       _buildFeatureItem(
                         Icons.schedule,
                         'Prayer Times',
-                        'Get accurate prayer times based on your location',
+                        'Accurate prayer times based on your GPS location with notifications',
                       ),
                       _buildFeatureItem(
-                        Icons.location_on,
+                        Icons.location_city,
                         'Masjid Finder',
-                        'Find nearby mosques in your area',
+                        'Find nearby mosques on an interactive map',
                       ),
                       _buildFeatureItem(
                         Icons.menu_book,
-                        'Al-Quran',
-                        'Read the holy Qur\'an',
+                        'Al-Quran (30 Juz)',
+                        'Read Tajweed Quran in 30 parts and full Quran with Urdu translation',
                       ),
                       _buildFeatureItem(
                         Icons.explore,
-                        'Qibla Direction',
-                        'Find the direction of Mecca',
+                        'Qibla Compass',
+                        'Real-time compass showing direction to Kaaba in Mecca',
                       ),
                       _buildFeatureItem(
                         Icons.calendar_today,
                         'Islamic Calendar',
-                        'View Islamic dates and months',
+                        'View current Hijri date with conversion',
                       ),
                       _buildFeatureItem(
-                        Icons.favorite,
-                        'Tasbeeh Counter',
-                        'Islamic prayer counter',
+                        Icons.repeat,
+                        'Digital Tasbeeh',
+                        'Electronic counter for dhikr and tasbih',
                       ),
                       _buildFeatureItem(
-                        Icons.info,
-                        'Five Pillars',
-                        'Learn about the pillars of Islam',
+                        Icons.star,
+                        'Five Pillars of Islam',
+                        'Educational content about Islam\'s fundamental pillars',
                       ),
                       _buildFeatureItem(
                         Icons.auto_stories,
-                        'Duas',
-                        'Islamic prayers and supplications',
+                        'Duas Collection',
+                        'Important Islamic supplications and prayers',
                       ),
                     ],
                   ),
@@ -198,13 +198,24 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                       SizedBox(height: 12),
                       _buildResourceItem(
                         'Aladhan API',
-                        'Prayer times & Islamic dates',
+                        'Prayer times, Qibla direction & Islamic calendar',
                       ),
                       _buildResourceItem(
-                        'Qur\'an Cloud API',
-                        'Complete Qur\'an text',
+                        'Google Maps',
+                        'Interactive maps for masjid finder',
                       ),
-                      _buildResourceItem('Geolocator', 'Location services'),
+                      _buildResourceItem(
+                        'Firebase',
+                        'Authentication with Google & Facebook sign-in',
+                      ),
+                      _buildResourceItem(
+                        'Flutter PDF Viewer',
+                        'Quran PDF reading experience',
+                      ),
+                      _buildResourceItem(
+                        'Geolocator & Compass',
+                        'Location services and Qibla direction',
+                      ),
                     ],
                   ),
                 ),
@@ -244,7 +255,7 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                 // Copyright
                 Center(
                   child: Text(
-                    '© 2024 Qur\'an App. All rights reserved.',
+                    '© 2025 Qur\'an App. All rights reserved.',
                     style: TextStyle(color: Color(0xFF7a9a6b), fontSize: 12),
                   ),
                 ),

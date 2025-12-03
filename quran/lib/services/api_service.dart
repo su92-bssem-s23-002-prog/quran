@@ -2,21 +2,14 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiService {
   static const String aladhanBaseUrl = 'https://api.aladhan.com/v1';
   static const String quranBaseUrl = 'https://api.alquran.cloud/v1';
   static const String mapboxBaseUrl = 'https://api.mapbox.com';
 
-  // Load Mapbox API key from environment with safety check
-  static String get mapboxApiKey {
-    try {
-      return dotenv.env['MAPBOX_API_KEY'] ?? '';
-    } catch (e) {
-      return ''; // Return empty if dotenv not initialized
-    }
-  }
+  // Mapbox API key - add your own if needed
+  static const String mapboxApiKey = '';
 
   // Cache for full Quran Uthmani payload
   static Map<String, dynamic>? _quranCache;
@@ -366,5 +359,30 @@ class ApiService {
 
   static double _degreesToRadians(double degrees) {
     return degrees * (3.1415926535897932 / 180);
+  }
+
+  // Round prayer time to nearest 5 minutes
+  static String roundPrayerTime(String time) {
+    try {
+      // Parse time in format "HH:mm"
+      final parts = time.split(':');
+      if (parts.length != 2) return time;
+
+      int hours = int.parse(parts[0]);
+      int minutes = int.parse(parts[1]);
+
+      // Round to nearest 5
+      int roundedMinutes = ((minutes + 2.5) ~/ 5) * 5;
+
+      // Handle overflow to next hour
+      if (roundedMinutes >= 60) {
+        roundedMinutes = 0;
+        hours = (hours + 1) % 24;
+      }
+
+      return '${hours.toString().padLeft(2, '0')}:${roundedMinutes.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return time; // Return original if parsing fails
+    }
   }
 }

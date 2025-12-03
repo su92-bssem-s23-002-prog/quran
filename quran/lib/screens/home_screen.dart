@@ -18,7 +18,6 @@ import 'about_us_screen.dart';
 import 'login_screen.dart';
 import '../services/google_auth_service.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
-import 'ai_chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -424,28 +423,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           children: [
                             // Time
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  currentTime,
-                                  style: TextStyle(
-                                    color: Color(0xFFd4af37),
-                                    fontSize: 56,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                SizedBox(width: 12),
-                                Text(
-                                  'ASAR\nPM',
-                                  style: TextStyle(
-                                    color: Color(0xFFd4af37),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    height: 1.2,
-                                  ),
-                                ),
-                              ],
+                            Text(
+                              currentTime,
+                              style: TextStyle(
+                                color: Color(0xFFd4af37),
+                                fontSize: 56,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             SizedBox(height: 16),
                             // Gregorian Date
@@ -557,16 +541,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const DuasScreen(),
-                              ),
-                            ),
-                          ),
-                          _buildMenuItem(
-                            icon: Icons.psychology,
-                            label: loc.translate('ai_qa'),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AiChatScreen(),
                               ),
                             ),
                           ),

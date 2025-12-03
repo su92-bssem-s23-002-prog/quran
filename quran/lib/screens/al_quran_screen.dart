@@ -272,7 +272,7 @@ class _JuzListScreenState extends State<JuzListScreen> {
                           crossAxisCount: 3,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
-                          childAspectRatio: 0.75,
+                          childAspectRatio: 0.70,
                         ),
                     itemCount: 30,
                     itemBuilder: (context, index) {
