@@ -81,6 +81,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - .env
     - assets/logo.png
     - assets/icons/prayer.svg
     - assets/icons/masjid.svg
@@ -93,7 +94,7 @@ flutter:
     - assets/icons/about.svg
     - assets/quran_pdfs/
     - assets/quran_pdfs/juz/
-    - assets/quran_pdfs/quran-shareef-with-urdu-translation.zip
+    # Removed ZIP asset reference; using direct PDF asset instead
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

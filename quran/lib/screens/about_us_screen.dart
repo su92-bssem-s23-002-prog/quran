@@ -230,7 +230,7 @@ class _AboutUsScreenState extends State<AboutUsScreen> {
                       ),
                       SizedBox(height: 12),
                       Text(
-                        'For support or feedback, please reach out to us at: support@quranapp.com',
+                        'For support or feedback, please reach out to us at:\nshahzaibhassancp270@gmail.com',
                         style: TextStyle(
                           color: Color(0xFFb0b0b0),
                           fontSize: 13,

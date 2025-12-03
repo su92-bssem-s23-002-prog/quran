@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../services/api_service.dart';
+import '../localization/app_localizations.dart';
 import 'prayer_times_screen.dart';
 import 'masjid_finder_screen.dart';
 import 'al_quran_screen.dart';
@@ -32,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String username = '';
   bool isLoading = true;
   Timer? _timer;
+  String _language = 'English';
 
   @override
   void initState() {
@@ -67,6 +70,14 @@ class _HomeScreenState extends State<HomeScreen> {
       });
 
       _updateTime();
+      // Load saved language preference
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final saved = prefs.getString('app_language');
+        if (saved != null && mounted) {
+          setState(() => _language = saved);
+        }
+      } catch (_) {}
     } catch (e) {
       print('Error initializing home: $e');
       setState(() {
@@ -168,64 +179,139 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               SizedBox(height: 24),
               Divider(color: Color(0xFF4a7c5e), thickness: 1, height: 1),
-              // Logout Option
-              ListTile(
-                leading: Icon(Icons.logout, color: Colors.red),
-                title: Text(
-                  'Logout',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      backgroundColor: Color(0xFF1a472a),
-                      title: Text(
-                        'Logout',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      content: Text(
-                        'Are you sure you want to logout?',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: Text(
-                            'Cancel',
-                            style: TextStyle(color: Color(0xFFd4af37)),
+              // Language Selection
+              StatefulBuilder(
+                builder: (context, setModalState) {
+                  final loc = AppLocalizations.of(_language);
+                  return ListTile(
+                    leading: const Icon(
+                      Icons.language,
+                      color: Color(0xFFd4af37),
+                    ),
+                    title: Text(
+                      loc.translate('language'),
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        children: [
+                          ChoiceChip(
+                            label: const Text('English'),
+                            selected: _language == 'English',
+                            selectedColor: const Color(0xFFd4af37),
+                            backgroundColor: const Color(0xFF1a472a),
+                            labelStyle: TextStyle(
+                              color: _language == 'English'
+                                  ? Colors.white
+                                  : const Color(0xFFd4af37),
+                            ),
+                            onSelected: (v) async {
+                              if (!v) return;
+                              setModalState(() => _language = 'English');
+                              setState(() => _language = 'English');
+                              try {
+                                final prefs =
+                                    await SharedPreferences.getInstance();
+                                await prefs.setString(
+                                  'app_language',
+                                  'English',
+                                );
+                              } catch (_) {}
+                            },
                           ),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: Text(
-                            'Logout',
-                            style: TextStyle(color: Colors.red),
+                          const SizedBox(width: 12),
+                          ChoiceChip(
+                            label: const Text('اردو'),
+                            selected: _language == 'Urdu',
+                            selectedColor: const Color(0xFFd4af37),
+                            backgroundColor: const Color(0xFF1a472a),
+                            labelStyle: TextStyle(
+                              color: _language == 'Urdu'
+                                  ? Colors.white
+                                  : const Color(0xFFd4af37),
+                            ),
+                            onSelected: (v) async {
+                              if (!v) return;
+                              setModalState(() => _language = 'Urdu');
+                              setState(() => _language = 'Urdu');
+                              try {
+                                final prefs =
+                                    await SharedPreferences.getInstance();
+                                await prefs.setString('app_language', 'Urdu');
+                              } catch (_) {}
+                            },
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
-                  if (confirm == true) {
-                    try {
-                      await GoogleAuthService().signOut();
-                    } catch (_) {
-                      await FirebaseAuth.instance.signOut();
-                    }
-                    try {
-                      await FacebookAuth.instance.logOut();
-                    } catch (_) {}
-                    if (mounted) {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
+                },
+              ),
+              Divider(color: Color(0xFF4a7c5e), thickness: 1, height: 1),
+              // Logout Option
+              Builder(
+                builder: (context) {
+                  final loc = AppLocalizations.of(_language);
+                  return ListTile(
+                    leading: Icon(Icons.logout, color: Colors.red),
+                    title: Text(
+                      loc.translate('logout'),
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: Color(0xFF1a472a),
+                          title: Text(
+                            loc.translate('logout'),
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          content: Text(
+                            loc.translate('logout_confirm'),
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: Text(
+                                loc.translate('cancel'),
+                                style: TextStyle(color: Color(0xFFd4af37)),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text(
+                                loc.translate('logout'),
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ],
                         ),
-                        (route) => false,
                       );
-                    }
-                  }
+                      if (confirm == true) {
+                        try {
+                          await GoogleAuthService().signOut();
+                        } catch (_) {
+                          await FirebaseAuth.instance.signOut();
+                        }
+                        try {
+                          await FacebookAuth.instance.logOut();
+                        } catch (_) {}
+                        if (mounted) {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LoginScreen(),
+                            ),
+                            (route) => false,
+                          );
+                        }
+                      }
+                    },
+                  );
                 },
               ),
               SizedBox(height: 20),
@@ -238,6 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(_language);
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -262,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              'Assalamu Alaikum,\n$username',
+                              '${loc.translate('greeting')}\n$username',
                               style: TextStyle(
                                 color: Color(0xFFd4af37),
                                 fontSize: 18,
@@ -394,7 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           _buildMenuItemSvg(
                             asset: 'assets/icons/prayer.svg',
-                            label: 'Prayer times',
+                            label: loc.translate('prayer_times'),
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -404,7 +491,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           _buildMenuItem(
                             icon: Icons.location_city,
-                            label: 'Masjid Finder',
+                            label: loc.translate('masjid_finder'),
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -415,7 +502,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           _buildMenuItemSvg(
                             asset: 'assets/icons/quran.svg',
-                            label: 'Al-Quran',
+                            label: loc.translate('al_quran'),
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -425,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           _buildMenuItem(
                             icon: Icons.compass_calibration,
-                            label: 'Qibla',
+                            label: loc.translate('qibla'),
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -435,7 +522,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           _buildMenuItem(
                             icon: Icons.calendar_today,
-                            label: 'Calendar',
+                            label: loc.translate('calendar'),
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -445,7 +532,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           _buildMenuItemSvg(
                             asset: 'assets/icons/tasbeeh.svg',
-                            label: 'Tasbeeh',
+                            label: loc.translate('tasbeeh'),
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -455,7 +542,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           _buildMenuItem(
                             icon: Icons.diamond,
-                            label: '5 Pillars',
+                            label: loc.translate('five_pillars'),
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -465,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           _buildMenuItemSvg(
                             asset: 'assets/icons/duas.svg',
-                            label: 'Duas',
+                            label: loc.translate('duas'),
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -474,22 +561,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           _buildMenuItem(
-                            icon: Icons.info,
-                            label: 'About Us',
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AboutUsScreen(),
-                              ),
-                            ),
-                          ),
-                          _buildMenuItem(
                             icon: Icons.psychology,
-                            label: 'AI Q&A',
+                            label: loc.translate('ai_qa'),
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const AiChatScreen(),
+                              ),
+                            ),
+                          ),
+                          _buildMenuItem(
+                            icon: Icons.info,
+                            label: loc.translate('about_us'),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AboutUsScreen(),
                               ),
                             ),
                           ),

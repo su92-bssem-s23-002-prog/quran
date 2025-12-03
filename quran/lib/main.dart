@@ -12,6 +12,12 @@ void main() async {
   // Load .env file with error handling for web/Windows
   try {
     await dotenv.load(fileName: ".env");
+    final hasGeminiKey = (dotenv.env['GEMINI_API_KEY'] ?? '').isNotEmpty;
+    if (hasGeminiKey) {
+      print('🔐 Env loaded: GEMINI_API_KEY detected');
+    } else {
+      print('⚠️ Env loaded: GEMINI_API_KEY missing');
+    }
   } catch (e) {
     print('Warning: Could not load .env file: $e');
   }
