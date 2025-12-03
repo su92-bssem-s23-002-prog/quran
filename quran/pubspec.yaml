@@ -92,6 +92,7 @@ flutter:
     - assets/icons/duas.svg
     - assets/icons/about.svg
     - assets/quran_pdfs/
+    - assets/quran_pdfs/juz/
     - assets/quran_pdfs/quran-shareef-with-urdu-translation.zip
 
   # An image asset can refer to one or more resolution-specific "variants", see

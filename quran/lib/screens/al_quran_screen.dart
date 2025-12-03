@@ -57,18 +57,15 @@ class _AlQuranScreenState extends State<AlQuranScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _buildModeCard(
-                        title: 'Tajweed Quran',
-                        subtitle: 'Read the complete Quran with Tajweed',
+                        title: 'Tajweed Quran (Juz 1–30)',
+                        subtitle: 'Open Tajweed by individual Juz',
                         icon: Icons.menu_book,
                         color: Color(0xFF1db854),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => QuranPdfViewerScreen(
-                                pdfAssetPath: 'assets/quran_pdfs/Quran.pdf',
-                                title: 'Tajweed Quran',
-                              ),
+                              builder: (context) => const JuzListScreen(),
                             ),
                           );
                         },
@@ -218,6 +215,69 @@ class _AlQuranScreenState extends State<AlQuranScreen> {
             Icon(Icons.arrow_forward_ios, color: color, size: 18),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class JuzListScreen extends StatelessWidget {
+  const JuzListScreen({super.key});
+
+  String _juzFileName(int index) {
+    // index 0..29 -> Juz 1..30; expects files like juz01.pdf .. juz30.pdf
+    final juzNum = index + 1;
+    final two = juzNum.toString().padLeft(2, '0');
+    return 'assets/quran_pdfs/juz/juz$two.pdf';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0d2818),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1a472a),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFd4af37)),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Select Juz',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      ),
+      body: ListView.builder(
+        itemCount: 30,
+        itemBuilder: (context, index) {
+          final juzNum = index + 1;
+          final assetPath = _juzFileName(index);
+          return ListTile(
+            title: Text(
+              'Juz $juzNum',
+              style: const TextStyle(color: Colors.white),
+            ),
+            subtitle: const Text(
+              'Tajweed PDF',
+              style: TextStyle(color: Color(0xFFb0b0b0)),
+            ),
+            trailing: const Icon(
+              Icons.arrow_forward_ios,
+              color: Color(0xFFd4af37),
+              size: 16,
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => QuranPdfViewerScreen(
+                    pdfAssetPath: assetPath,
+                    title: 'Juz $juzNum (Tajweed)',
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
